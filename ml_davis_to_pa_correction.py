@@ -16,7 +16,7 @@ from sklearn.metrics import r2_score, mean_squared_error
 import matplotlib.pyplot as plt
 
 #load in the sheet of matching pairs of PA, Davis, & regulatory data
-sites = pd.read_excel("C:\\Users\\kokorn\\Documents\\GLOBE PM2.5\\PA_Davis_Matching.xlsx")
+sites = pd.read_excel("C:\\Users\\okorn\\Documents\\GLOBE PM2.5\\PA_Davis_Matching.xlsx")
 
 #make an overall df to hold all of our data
 total_data = pd.DataFrame()
@@ -27,8 +27,8 @@ for n in range(len(sites)):
     PA_filename = sites['PurpleAir'].iloc[n] + '.csv'
     D_filename = sites['Davis'].iloc[n] + '.csv'
     #load in the data
-    PA = pd.read_csv("C:\\Users\\kokorn\\Documents\\GLOBE PM2.5\\{}".format(PA_filename),index_col=0)
-    D = pd.read_csv("C:\\Users\\kokorn\\Documents\\GLOBE PM2.5\\{}".format(D_filename),skiprows=5,encoding='latin1',index_col=0)
+    PA = pd.read_csv("C:\\Users\\okorn\\Documents\\GLOBE PM2.5\\{}".format(PA_filename),index_col=0)
+    D = pd.read_csv("C:\\Users\\okorn\\Documents\\GLOBE PM2.5\\{}".format(D_filename),skiprows=5,encoding='latin1',index_col=0)
     #standardize the datetime indexes
     PA.index = pd.to_datetime(PA.index, errors='coerce', utc=True)
     D.index = pd.to_datetime(D.index, errors='coerce', utc=True) # double check later that davis is actually utc
@@ -80,17 +80,28 @@ total_data['y_pred'] = model.predict(X)
 #split back up by location & plot the results separately - 1 subplot per location
 
 #initialize number of plots - subplot for each location
-fig, axs = plt.subplots(n, 1, figsize=(8, 4 * n))
-#If there is only one subplot, make it a list to handle indexing
-if n == 1:
-    axs = [axs]
+fig, axs = plt.subplots(n+1, 1, figsize=(8, 4 * (n+1)))
 
-for loc, df_loc in total_data.groupby('location'):
-    #scatter the raw davis & PA corrected data
-    plt.scatter(df_loc['wildfire'], df_loc['PM 2.5 - ug/m³'], color='black',label = 'Raw Davis')
-    #then scatter the 'corrected' davis & PA corrected data
-    plt.scatter(df_loc['wildfire'], df_loc['y_pred'], color='grey',label = 'Corrected Davis' )
-    plt.title('{}'.format(loc))
-    plt.legend()
-    plt.show()
+for i, (loc, df_loc) in enumerate(total_data.groupby('Site')):
+    ax = axs[i] 
+    #then scatter the raw davis data
+    ax.scatter(df_loc['datetimeUTC'], df_loc['PM 2.5 - ug/m³'], color='grey',label = 'Raw Davis',s=10)
+    #scatter the PA corrected data
+    ax.scatter(df_loc['datetimeUTC'], df_loc['wildfire'], color='black',label = 'PA Corrected',s=10)
+    #then scatter the 'corrected' davis data
+    ax.scatter(df_loc['datetimeUTC'], df_loc['y_pred'], color='blue',label = 'Corrected Davis',s=10)
+    ax.set_title('{}'.format(loc))
+    #also calculate the r2, rmse for this specific location
+    r2 = round(r2_score(df_loc['wildfire'], df_loc['y_pred']),2)
+    rmse = round(np.sqrt(mean_squared_error(df_loc['wildfire'],df_loc['y_pred'])),2)
+    #and add it to the subplot as text
+    ax.text(0.05, 0.95, 'R2 = {}, RMSE = {}'.format(r2,rmse),transform=ax.transAxes,verticalalignment='top')
+    #add legend
+    ax.legend()
+    
+plt.tight_layout()
+plt.show()
+
+#save fig to file
+fig.savefig('C:\\Users\\okorn\\Documents\\GLOBE PM2.5\\PA_davis_comparison.png')
     
